@@ -151,27 +151,40 @@ class AdminController < ApplicationController
   end
 
   def login
-  	session[:admin_id] = nil
-  	if request.post?
-  		admin = Admin.authenticate(params[:name], params[:password])
-  		if admin
-  			if admin.active == true
-			session[:admin_id] = admin.id
-			admin.last_visit = Time.now
-			admin.save
-			session[:cur_on] = CurOnline.new
-			session[:cur_on].date = Time.now
-			session[:cur_on].name = admin.get_name
-			session[:cur_on].position = admin.position
-			session[:cur_on].save
-			redirect_to(:action => "index")
-  			else admin.active == false
-  			flash.now[:notice] = "Your account has been disabled"
-  			end
-  		else
-  			flash.now[:notice] = "Invalid user/password combination"
-  		end
-  	end
+     	session[:admin_id] = nil
+     	if request.post?
+     	   unless session[:failed_login] && session[:failed_login] > 3
+        		admin = Admin.authenticate(params[:name], params[:password])
+        		if admin
+        			if admin.active == true
+			      session[:admin_id] = admin.id
+			      admin.last_visit = Time.now
+			      admin.save
+			      session[:cur_on] = CurOnline.new
+			      session[:cur_on].date = Time.now
+			      session[:cur_on].name = admin.get_name
+			      session[:cur_on].position = admin.position
+			      session[:cur_on].save
+			      redirect_to(:action => "index")
+        			else admin.active == false
+        			flash.now[:notice] = "Your account has been disabled"
+        			end
+        		else
+        		   unless session[:failed_login]
+        		      session[:failed_login] = 0
+        		   else
+        		      session[:failed_login] = session[:failed_login] + 1
+        		   end
+        			flash.now[:notice] = "Invalid user/password combination"
+        		end
+        	else
+         
+         
+         flash.now[:notice] = "Repeated failed logins detected, logging in temporarily disabled"
+        	end
+      
+   end
+      
 
   end
 
@@ -319,7 +332,7 @@ class AdminController < ApplicationController
 	def edit_admin
 		if params[:edit_admin_password] == params[:edit_admin_confirm]
 	  		unless params[:edit_admin_id].blank?
-	  		   if params[:add_admin_password].length > 4 && params[:add_admin_confirm].length > 4
+	  		   if params[:edit_admin_password].length > 4 && params[:edit_admin_confirm].length > 4
 				   edit_admin = Admin.find(params[:edit_admin_id])
 				   edit_admin.first_name = params[:edit_admin_first_name].capitalize.strip
 				   edit_admin.last_name = params[:edit_admin_last_name].capitalize.strip
@@ -344,9 +357,9 @@ class AdminController < ApplicationController
 				flash[:notice] = "Please select an admin to be edited"
 			end
 		else
+		   redirect_to(:action => "index")
 	  		flash[:notice] = "Edit admin passwords do not match"
 	  	end
-	  	redirect_to(:action => "index")
 	end
 
 	def enable_admin
